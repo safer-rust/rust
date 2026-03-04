@@ -46,6 +46,7 @@ pub trait AsyncDrop {
 ///
 /// See [`ptr::drop_in_place`] for safety concerns.
 ///
+/// [`ptr::drop_in_place`]: crate::ptr::drop_in_place()
 #[unstable(feature = "async_drop", issue = "126482")]
 #[lang = "async_drop_in_place"]
 pub async unsafe fn async_drop_in_place<T: ?Sized>(_to_drop: *mut T) {
