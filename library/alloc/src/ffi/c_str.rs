@@ -323,7 +323,7 @@ impl CString {
     ///
     /// # Safety
     ///
-    /// The caller must ensure `v` contains no NUL bytes in its contents.
+    /// The caller must ensure `v` contains no nul bytes in its contents.
     ///
     /// # Examples
     ///
