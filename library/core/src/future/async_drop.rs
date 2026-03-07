@@ -44,8 +44,8 @@ pub trait AsyncDrop {
 ///
 /// # Safety
 ///
-/// See [`ptr::drop_in_place`] for safety concerns.
-///
+/// * The pointer `_to_drop` must be valid for both reads and writes, not only for the duration of this function call, but also until the returned future has completed.
+/// * See [`ptr::drop_in_place`] for additional safety concerns.
 /// [`ptr::drop_in_place`]: crate::ptr::drop_in_place()
 #[unstable(feature = "async_drop", issue = "126482")]
 #[lang = "async_drop_in_place"]
