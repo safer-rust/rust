@@ -34,6 +34,7 @@ members = [
   "src/tools/remote-test-server",
   "src/tools/replace-version-placeholder",
   "src/tools/run-make-support",
+  "src/tools/safety-tool",
   "src/tools/rust-installer",
   "src/tools/rustdoc",
   "src/tools/rustdoc-gui-test",

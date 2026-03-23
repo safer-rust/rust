@@ -827,6 +827,21 @@ fn doc_std(
 
     cargo.into_cmd().run(builder);
     builder.cp_link_r(&out_dir, out);
+
+    if requested_crates.iter().any(|c| c == "core") && format == DocumentationFormat::Html {
+        let mut cmd = builder.tool_cmd(Tool::SafetyTool);
+        cmd.arg("--src-root");
+        cmd.arg(builder.src.join("library/core/src"));
+        cmd.arg("--doc-root");
+        cmd.arg(out.join("core"));
+        cmd.arg("--sp-file");
+        if let Some(sp_file) = env::var_os("SAFETY_TOOL_SP_FILE") {
+            cmd.arg(sp_file);
+        } else {
+            cmd.arg(builder.src.join("src/tools/safety-tool/assets/sp-core.toml"));
+        }
+        cmd.run(builder);
+    }
 }
 
 /// Prepare a compiler that will be able to document something for `target` at `stage`.

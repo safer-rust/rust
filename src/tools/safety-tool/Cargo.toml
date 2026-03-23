@@ -1,0 +1,11 @@
+[package]
+name = "safety-tool"
+version = "0.1.0"
+edition = "2021"
+description = "Collects and reports safety tool annotations from core sources"
+
+[dependencies]
+walkdir = "2"
+toml = "0.8"
+syn = { version = "2", features = ["full", "visit", "parsing"] }
+quote = "1"
