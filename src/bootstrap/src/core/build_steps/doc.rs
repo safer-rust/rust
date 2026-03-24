@@ -833,7 +833,7 @@ fn doc_std(
         cmd.arg("--src-root");
         cmd.arg(builder.src.join("library/core/src"));
         cmd.arg("--doc-root");
-        cmd.arg(out.join("core"));
+        cmd.arg(out);
         cmd.arg("--sp-file");
         if let Some(sp_file) = env::var_os("SAFETY_TOOL_SP_FILE") {
             cmd.arg(sp_file);

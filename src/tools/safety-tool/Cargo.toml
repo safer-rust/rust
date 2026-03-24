@@ -2,7 +2,10 @@
 name = "safety-tool"
 version = "0.1.0"
 edition = "2021"
-description = "Collects and reports safety tool annotations from core sources"
+
+[[bin]]
+name = "safety-tool"
+path = "src/main.rs"
 
 [dependencies]
 walkdir = "2"
