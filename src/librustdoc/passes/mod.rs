@@ -38,6 +38,9 @@ pub(crate) use self::collect_trait_impls::COLLECT_TRAIT_IMPLS;
 mod calculate_doc_coverage;
 pub(crate) use self::calculate_doc_coverage::CALCULATE_DOC_COVERAGE;
 
+pub(crate) mod expand_safety_spec;
+pub(crate) use self::expand_safety_spec::EXPAND_SAFETY_SPEC;
+
 mod lint;
 pub(crate) use self::lint::RUN_LINTS;
 
@@ -74,6 +77,7 @@ pub(crate) enum Condition {
 pub(crate) const PASSES: &[Pass] = &[
     CHECK_DOC_TEST_VISIBILITY,
     PROPAGATE_DOC_CFG,
+    EXPAND_SAFETY_SPEC,
     STRIP_ALIASED_NON_LOCAL,
     STRIP_HIDDEN,
     STRIP_PRIVATE,
@@ -94,6 +98,7 @@ pub(crate) const DEFAULT_PASSES: &[ConditionalPass] = &[
     ConditionalPass::new(STRIP_HIDDEN, WhenNotDocumentHidden),
     ConditionalPass::new(STRIP_PRIVATE, WhenNotDocumentPrivate),
     ConditionalPass::new(STRIP_PRIV_IMPORTS, WhenDocumentPrivate),
+    ConditionalPass::always(EXPAND_SAFETY_SPEC),
     ConditionalPass::always(COLLECT_INTRA_DOC_LINKS),
     ConditionalPass::always(PROPAGATE_STABILITY),
     ConditionalPass::always(RUN_LINTS),

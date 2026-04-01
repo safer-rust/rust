@@ -1243,6 +1243,11 @@ pub const fn slice_from_raw_parts_mut<T>(data: *mut T, len: usize) -> *mut [T] {
 ///
 /// # Safety
 ///
+/// * #[safety::requires(ValidPtr(x, T, 1))]
+/// * #[safety::requires(ValidPtr(y, T, 1))]
+/// * #[safety::requires(Align(x, T))]
+/// * #[safety::requires(Align(y, T))]
+/// 
 /// Behavior is undefined if any of the following conditions are violated:
 ///
 /// * Both `x` and `y` must be [valid] for both reads and writes. They must remain valid even when the
@@ -1728,6 +1733,9 @@ pub const unsafe fn read<T>(src: *const T) -> T {
 ///
 /// # Safety
 ///
+/// * #[safety::requires(ValidPtrRead(src, T, 1))]
+/// * #[safety::requires(Init(src, T))]
+/// 
 /// Behavior is undefined if any of the following conditions are violated:
 ///
 /// * `src` must be [valid] for reads.
@@ -1938,6 +1946,8 @@ pub const unsafe fn write<T>(dst: *mut T, src: T) {
 ///
 /// # Safety
 ///
+/// * #[safety::requires(ValidPtrWrite(dst, T, 1))]
+/// 
 /// Behavior is undefined if any of the following conditions are violated:
 ///
 /// * `dst` must be [valid] for writes.

@@ -11,7 +11,7 @@ use rustc_errors::emitter::{DynEmitter, HumanReadableErrorType, OutputTheme, std
 use rustc_errors::json::JsonEmitter;
 use rustc_feature::UnstableFeatures;
 use rustc_hir::def::Res;
-use rustc_hir::def_id::{DefId, DefIdMap, DefIdSet, LocalDefId};
+use rustc_hir::def_id::{DefId, DefIdMap, DefIdSet, LOCAL_CRATE, LocalDefId};
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{HirId, Path};
 use rustc_lint::{MissingDoc, late_lint_mod};
@@ -34,6 +34,7 @@ use crate::html::macro_expansion::{ExpandedCode, source_macro_expansion};
 use crate::passes;
 use crate::passes::Condition::*;
 use crate::passes::collect_intra_doc_links::LinkCollector;
+use crate::passes::expand_safety_spec::{SafetySpec, load_safety_spec};
 
 pub(crate) struct DocContext<'tcx> {
     pub(crate) tcx: TyCtxt<'tcx>,
@@ -68,6 +69,9 @@ pub(crate) struct DocContext<'tcx> {
     pub(crate) output_format: OutputFormat,
     /// Used by `strip_private`.
     pub(crate) show_coverage: bool,
+    /// When set, `expand-safety-spec` replaces `#[safety::requires(...)]` doc lines 
+    /// with the expanded description from the TOML file specified by `--safety-spec`.
+    pub(crate) safety_spec: Option<Arc<SafetySpec>>,
 }
 
 impl<'tcx> DocContext<'tcx> {
@@ -367,6 +371,14 @@ pub(crate) fn run_global_ctxt(
     let auto_traits =
         tcx.visible_traits().filter(|&trait_def_id| tcx.trait_is_auto(trait_def_id)).collect();
 
+    let documenting_crate = tcx.crate_name(LOCAL_CRATE).to_string();
+    let safety_spec = render_options.safety_spec_file.as_ref().and_then(|path| {
+        match load_safety_spec(path, &documenting_crate) {
+            Ok(spec) => spec.map(Arc::new),
+            Err(e) => tcx.dcx().fatal(e),
+        }
+    });
+
     let mut ctxt = DocContext {
         tcx,
         param_env: ParamEnv::empty(),
@@ -381,6 +393,7 @@ pub(crate) fn run_global_ctxt(
         inlined: FxHashSet::default(),
         output_format,
         show_coverage,
+        safety_spec,
     };
 
     for cnum in tcx.crates(()) {

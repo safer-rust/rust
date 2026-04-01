@@ -1,0 +1,21 @@
+package.name = "core"
+
+[tag.ValidPtrRead]
+args = [ "p", "T", "len" ]
+desc = "pointer `{p}` must be valid for reading the `sizeof({T})*{len}` memory from it."
+
+[tag.ValidPtrWrite]
+args = [ "p", "T", "len" ]
+desc = "pointer `{p}` must be valid for writing the `sizeof({T})*{len}` memory from it."
+
+[tag.ValidPtr]
+args = [ "p", "T", "len" ]
+desc = "pointer `{p}` must be valid for reading and writing the `sizeof({T})*{len}` memory from it."
+
+[tag.Init]
+args = [ "p", "T" ]
+desc = "`{p}` must point to a properly initialized value of type `{T}`."
+
+[tag.Align]
+args = [ "p", "T" ]
+desc = "pointer `{p}` must be properly aligned for type `{T}`."
