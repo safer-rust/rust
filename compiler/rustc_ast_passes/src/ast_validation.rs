@@ -27,10 +27,9 @@ use rustc_ast::*;
 use rustc_ast_pretty::pprust::{self, State};
 use rustc_attr_parsing::validate_attr;
 use rustc_data_structures::fx::FxIndexMap;
-use rustc_errors::{DiagCtxtHandle, LintBuffer};
+use rustc_errors::{DiagCtxtHandle, Diagnostic, LintBuffer};
 use rustc_feature::Features;
 use rustc_session::Session;
-use rustc_session::lint::BuiltinLintDiag;
 use rustc_session::lint::builtin::{
     DEPRECATED_WHERE_CLAUSE_LOCATION, MISSING_ABI, MISSING_UNSAFE_ON_EXTERN,
     PATTERNS_IN_FNS_WITHOUT_BODY, UNUSED_VISIBILITIES,
@@ -174,17 +173,19 @@ impl<'a> AstValidator<'a> {
         {
             let mut state = State::new();
 
+            let mut needs_comma = !ty_alias.after_where_clause.predicates.is_empty();
             if !ty_alias.after_where_clause.has_where_token {
                 state.space();
                 state.word_space("where");
+            } else if !needs_comma {
+                state.space();
             }
 
-            let mut first = ty_alias.after_where_clause.predicates.is_empty();
             for p in &ty_alias.generics.where_clause.predicates {
-                if !first {
+                if needs_comma {
                     state.word_space(",");
                 }
-                first = false;
+                needs_comma = true;
                 state.print_where_predicate(p);
             }
 
@@ -1424,7 +1425,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                         UNUSED_VISIBILITIES,
                         item.id,
                         item.vis.span,
-                        BuiltinLintDiag::UnusedVisibility(item.vis.span),
+                        errors::UnusedVisibility { span: item.vis.span },
                     )
                 }
 
@@ -1731,14 +1732,19 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
             Self::check_decl_no_pat(&sig.decl, |span, ident, mut_ident| {
                 if mut_ident && matches!(ctxt, FnCtxt::Assoc(_)) {
                     if let Some(ident) = ident {
-                        self.lint_buffer.buffer_lint(
+                        let is_foreign = matches!(ctxt, FnCtxt::Foreign);
+                        self.lint_buffer.dyn_buffer_lint(
                             PATTERNS_IN_FNS_WITHOUT_BODY,
                             id,
                             span,
-                            BuiltinLintDiag::PatternsInFnsWithoutBody {
-                                span,
-                                ident,
-                                is_foreign: matches!(ctxt, FnCtxt::Foreign),
+                            move |dcx, level| {
+                                let sub = errors::PatternsInFnsWithoutBodySub { ident, span };
+                                if is_foreign {
+                                    errors::PatternsInFnsWithoutBody::Foreign { sub }
+                                } else {
+                                    errors::PatternsInFnsWithoutBody::Bodiless { sub }
+                                }
+                                .into_diag(dcx, level)
                             },
                         )
                     }
@@ -1828,11 +1834,30 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                     Some((right, snippet))
                 }
             };
-            self.lint_buffer.buffer_lint(
+            let left_sp = self
+                .sess
+                .source_map()
+                .span_extend_prev_while(err.span, char::is_whitespace)
+                .unwrap_or(err.span);
+            self.lint_buffer.dyn_buffer_lint(
                 DEPRECATED_WHERE_CLAUSE_LOCATION,
                 item.id,
                 err.span,
-                BuiltinLintDiag::DeprecatedWhereclauseLocation(err.span, sugg),
+                move |dcx, level| {
+                    let suggestion = match sugg {
+                        Some((right_sp, sugg)) => {
+                            errors::DeprecatedWhereClauseLocationSugg::MoveToEnd {
+                                left: left_sp,
+                                right: right_sp,
+                                sugg,
+                            }
+                        }
+                        None => errors::DeprecatedWhereClauseLocationSugg::RemoveWhere {
+                            span: err.span,
+                        },
+                    };
+                    errors::DeprecatedWhereClauseLocation { suggestion }.into_diag(dcx, level)
+                },
             );
         }
 

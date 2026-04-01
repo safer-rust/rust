@@ -7,11 +7,6 @@
 
 // tidy-alphabetical-start
 //
-/// # `anon` query modifier
-///
-/// Generate a dep node based not on the query key, but on the query's dependencies.
-pub(crate) struct anon;
-
 /// # `arena_cache` query modifier
 ///
 /// Query return values must impl `Copy` and be small, but some queries must return values that
@@ -23,11 +18,15 @@ pub(crate) struct anon;
 /// The query plumbing takes care of the arenas and the type manipulations.
 pub(crate) struct arena_cache;
 
-/// # `cache_on_disk_if { ... }` query modifier
+/// # `cache_on_disk` query modifier
 ///
-/// Cache the query result to disk if the provided block evaluates to true. The query key
-/// identifier is available for use within the block, as is `tcx`.
-pub(crate) struct cache_on_disk_if;
+/// The query's return values are cached to disk, and can be loaded by subsequent
+/// sessions if the corresponding dep node is green.
+///
+/// If the [`separate_provide_extern`] modifier is also present, values will only
+/// be cached to disk for "local" keys, because values for external crates should
+/// be loadable from crate metadata instead.
+pub(crate) struct cache_on_disk;
 
 /// # `depth_limit` query modifier
 ///
@@ -59,6 +58,16 @@ pub(crate) struct eval_always;
 /// Generate a `feed` method to set the query's value from another query.
 pub(crate) struct feedable;
 
+/// # `no_force` query modifier
+///
+/// Dep nodes of queries with this modifier will never be "forced" when trying
+/// to mark their dependents green, even if their key is recoverable from the
+/// key fingerprint.
+///
+/// Used by some queries with custom cycle-handlers to ensure that if a cycle
+/// occurs, all of the relevant query calls will be on the query stack.
+pub(crate) struct no_force;
+
 /// # `no_hash` query modifier
 ///
 /// Do not hash the query's return value for incremental compilation. If the value needs to be
@@ -68,6 +77,8 @@ pub(crate) struct no_hash;
 /// # `separate_provide_extern` query modifier
 ///
 /// Use separate query provider functions for local and extern crates.
+///
+/// Also affects the [`cache_on_disk`] modifier.
 pub(crate) struct separate_provide_extern;
 
 // tidy-alphabetical-end
