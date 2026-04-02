@@ -260,6 +260,8 @@ pub(crate) struct RenderOptions {
     pub(crate) default_settings: FxIndexMap<String, String>,
     /// If present, suffix added to CSS/JavaScript files when referencing them in generated pages.
     pub(crate) resource_suffix: String,
+    /// If present, path to a TOML file used to expand `#[safety::requires(...)]` doc lines.
+    pub(crate) safety_spec_file: Option<PathBuf>,
     /// Whether to create an index page in the root of the output directory. If this is true but
     /// `enable_index_page` is None, generate a static listing of crates instead.
     pub(crate) enable_index_page: bool,
@@ -796,6 +798,13 @@ impl Options {
             ModuleSorting::Alphabetical
         };
         let resource_suffix = matches.opt_str("resource-suffix").unwrap_or_default();
+        let safety_spec_file = matches.opt_str("safety-spec").map(PathBuf::from);
+        if safety_spec_file.is_some() && !nightly_options::is_unstable_enabled(matches) {
+            dcx.fatal(
+                "the `-Z unstable-options` flag must be passed to use `--safety-spec` \
+                (see https://github.com/rust-lang/rust/issues/76578)",
+            );
+        }
         let markdown_no_toc = matches.opt_present("markdown-no-toc");
         let markdown_css = matches.opt_strs("markdown-css");
         let markdown_playground_url = matches.opt_str("markdown-playground-url");
@@ -908,6 +917,7 @@ impl Options {
             extern_html_root_takes_precedence,
             default_settings,
             resource_suffix,
+            safety_spec_file,
             enable_index_page,
             index_page,
             static_root_path,

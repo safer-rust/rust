@@ -1729,6 +1729,9 @@ pub const unsafe fn read<T>(src: *const T) -> T {
 ///
 /// # Safety
 ///
+/// * #[safety::requires(ValidPtrRead(src, T, 1))]
+/// * #[safety::requires(Init(src, T))]
+/// 
 /// Behavior is undefined if any of the following conditions are violated:
 ///
 /// * `src` must be [valid] for reads.
