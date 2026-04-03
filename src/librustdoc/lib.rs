@@ -556,6 +556,15 @@ fn opts() -> Vec<RustcOptGroup> {
         ),
         opt(
             Unstable,
+            Opt,
+            "",
+            "safety-spec",
+            "path to a TOML file describing safety tags; expands whole doc lines of the form \
+                #[safety::requires(Tag(...))] (requires -Z unstable-options)",
+            "PATH",
+        ),
+        opt(
+            Unstable,
             FlagMulti,
             "",
             "show-type-layout",
