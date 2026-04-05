@@ -562,6 +562,14 @@ fn opts() -> Vec<RustcOptGroup> {
             "Include the memory layout of types in the docs",
             "",
         ),
+        opt(
+            Unstable,
+            Opt,
+            "",
+            "safety-spec",
+            "TOML file with `[package]`, `[tag.NAME]` tables for `#[safety::requires(...)]` injection",
+            "PATH",
+        ),
         opt(Unstable, Flag, "", "no-capture", "Don't capture stdout and stderr of tests", ""),
         opt(
             Unstable,
