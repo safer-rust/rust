@@ -567,7 +567,7 @@ fn opts() -> Vec<RustcOptGroup> {
             Opt,
             "",
             "safety-spec",
-            "TOML file with `[package]`, `[tag.NAME]` tables for `#[safety::requires(...)]` injection",
+            "transform the safety specification into the documentation from the given TOML file or literal string",
             "PATH",
         ),
         opt(Unstable, Flag, "", "no-capture", "Don't capture stdout and stderr of tests", ""),

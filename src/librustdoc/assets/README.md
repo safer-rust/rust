@@ -4,11 +4,15 @@ This directory holds example TOML files for the **`--safety-spec`** feature (uns
 
 ## What it does
 
-When you document a crate, rustdoc can read **`#[safety::requires(Tag(args…)), …]`** attributes on items (functions, methods, structs, etc.) and **merge** generated Markdown into that item’s documentation. Each tag expands to one unordered-list line:
+When you document a crate, rustdoc can read **`#[safety::requires(…)]`** attributes on items (functions, methods, structs, etc.), parse the **safety tag** attributes to generate corresponding Markdown description. Then rustdoc can **merge** generated Markdown into that item’s documentation. Safety tags are **comma-separated** inside `requires(...)`.
 
-`- Tag: <expanded description from the TOML template>`
+Each **safety tag** becomes one list line:
 
-Templates may include Markdown and intra-doc links (e.g. `[text](crate::path)`); injection runs **before** intra-doc link collection so those links are resolved like normal doc comments.
+- **`Tag(arg1, arg2, …)`** — `* Tag: <text>` from the TOML `[tag.Tag]` template (`desc` with `{arg}` placeholders).
+- **`Tag = "…"`** with **`Tag` present in the TOML** — `* Tag: …` with literal string as description at this place.
+- **`Tag = "…"`** with **`Tag` absent from the TOML** — `* <Label>: …` where `<Label>` is a customized `Tag` with formatting(replace all underscores (`_`) with spaces and capitalize the first letter).
+
+Templates and inline strings may include Markdown and intra-doc links (e.g. `[text](crate::path)`); injection runs **before** intra-doc link collection so those links are resolved like normal doc comments.
 
 Implementation: [`passes/inject_safety_docs.rs`](../passes/inject_safety_docs.rs).
 
@@ -18,9 +22,9 @@ Implementation: [`passes/inject_safety_docs.rs`](../passes/inject_safety_docs.rs
 
 2. **Load** — In `core.rs`, after the crate name is known, `load_safety_spec` reads the TOML. It returns `None` if `package.name` does not match the crate being documented (or the file is invalid); otherwise an `Arc<SafetySpec>` is stored on `DocContext::safety_spec`.
 
-3. **Pass** — After `clean::krate`, rustdoc runs the default pass list from `passes/mod.rs`. **`INJECT_SAFETY_DOCS`** is always scheduled (it is **not** part of the separate `--doc-coverage` pass set). In `DEFAULT_PASSES` it runs after `PROPAGATE_STABILITY` and **before** `COLLECT_INTRA_DOC_LINKS`.
+3. **Pass** — After `clean::krate`, rustdoc runs the default pass list from `passes/mod.rs`. **`INJECT_SAFETY_DOCS`** is always scheduled in `DEFAULT_PASSES`. It runs **before** `COLLECT_INTRA_DOC_LINKS`.
 
-4. **Transform** — `inject_safety_docs` is a no-op if `safety_spec` is `None`. If set, it walks the cleaned crate (`DocFolder`), and for supported items it collects `#[safety::requires]` from attributes, substitutes `{name}` holes in each tag’s `desc` using positional args, builds the list Markdown, then splices it into the merged doc string (typically under **# Safety**; see `inject_safety_markdown` in the same module).
+4. **Transform** — `inject_safety_docs` is a no-op if `safety_spec` is `None`. If set, it walks the cleaned crate (`DocFolder`), and for supported items it collects `#[safety::requires]` from attributes: `Tag(args)` use TOML `desc` + args; `Tag = "…"` clauses use the literal text; then it builds the list Markdown and splices it into the merged doc string (typically under **# Safety**; see `inject_safety_markdown` in the same module).
 
 ## Example file
 

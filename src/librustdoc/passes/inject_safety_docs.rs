@@ -1,8 +1,13 @@
 //! Injects Markdown (from `#[safety::requires(...)]` + `--safety-spec`) into item docs before
 //! intra-doc link resolution.
+//!
+//! Safety tags support the following shapes:
+//! - `Tag(arg1, arg2, …)` — expand using `[tag.Tag]` from the TOML.
+//! - `Tag = "…"` — use the string literal as the description for this tag at this site.
 
 use std::sync::Arc;
 
+use regex::Regex;
 use rustc_ast as ast;
 use rustc_ast::token::DocFragmentKind;
 use rustc_ast_pretty::pprust::{meta_list_item_to_string, path_to_string};
@@ -11,9 +16,8 @@ use rustc_errors::DiagCtxtHandle;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_resolve::rustdoc::DocFragment;
-use rustc_span::symbol::{Symbol, sym};
 use rustc_span::DUMMY_SP;
-use regex::Regex;
+use rustc_span::symbol::{Symbol, sym};
 use tracing::debug;
 
 use crate::clean::{Attributes, Crate, Item, ItemKind};
@@ -28,7 +32,7 @@ pub(crate) const INJECT_SAFETY_DOCS: Pass = Pass {
 };
 
 /// The safety spec.
-/// 
+///
 /// This is a map of tag names to tag definitions.
 #[derive(Debug)]
 pub(crate) struct SafetySpec {
@@ -36,7 +40,7 @@ pub(crate) struct SafetySpec {
 }
 
 /// A tag definition.
-/// 
+///
 /// The `args` are the arguments of the tag, and the `desc` is the description of the tag.
 #[derive(Debug)]
 struct TagDef {
@@ -55,7 +59,7 @@ struct TagDef {
 /// args = ["arg1", "arg2"]
 /// desc = "This is a description of the tag, containing {arg1} and {arg2}."
 /// ```
-/// 
+///
 /// The following conditions will return `None`:
 ///
 /// * The file could not be read or parsed.
@@ -98,11 +102,8 @@ pub(crate) fn load_safety_spec(
         return None;
     }
     let Some(tag_root) = value.get("tag").and_then(|v| v.as_table()) else {
-        dcx.struct_warn(format!(
-            "`--safety-spec` {}: missing `[tag.*]` tables",
-            path.display()
-        ))
-        .emit();
+        dcx.struct_warn(format!("`--safety-spec` {}: missing `[tag.*]` tables", path.display()))
+            .emit();
         return None;
     };
     let mut tags = FxHashMap::default();
@@ -119,11 +120,8 @@ pub(crate) fn load_safety_spec(
         tags.insert(tag_name.clone(), TagDef { args, desc: desc.to_string() });
     }
     if tags.is_empty() {
-        dcx.struct_warn(format!(
-            "`--safety-spec` {}: no valid `[tag.*]` entries",
-            path.display()
-        ))
-        .emit();
+        dcx.struct_warn(format!("`--safety-spec` {}: no valid `[tag.*]` entries", path.display()))
+            .emit();
         return None;
     }
     Some(Arc::new(SafetySpec { tags }))
@@ -134,13 +132,21 @@ fn requires_sym() -> Symbol {
     Symbol::intern("requires")
 }
 
+/// The type of a tag inside `#[safety::requires(...)]`: either from TOML config or customized tags with inline text.
+#[derive(Debug, Clone)]
+enum SafetyTagType {
+    /// `Tag(a, b)` — description comes from TOML `[tag.Tag]` `desc` with arguments filled in.
+    FromConfig { args: Vec<String> },
+    /// `Tag = "…"` — customized tag with inline text as the full description.
+    Inline { text: String },
+}
+
 /// Parse a `#[safety::requires(...)]` attribute.
 ///
 /// Returns `None` if the attribute is not a `#[safety::requires(...)]` attribute.
-/// 
-/// Otherwise, returns a vector of tuples, where the first element is the tag name and the second element
-/// is a vector of arguments. The arguments are the values of the arguments to the tag.
-fn parse_safety_requires(attr: &hir::Attribute) -> Option<Vec<(String, Vec<String>)>> {
+///
+/// Otherwise, this will parse the attribute, returning a vector of `(tag name, tag type)` pairs.
+fn parse_safety_requires(attr: &hir::Attribute) -> Option<Vec<(String, SafetyTagType)>> {
     use rustc_ast::attr::AttributeExt;
 
     // Check if the attribute is a `#[safety::requires(...)]` attribute.
@@ -153,15 +159,22 @@ fn parse_safety_requires(attr: &hir::Attribute) -> Option<Vec<(String, Vec<Strin
     for inner in list {
         match inner {
             ast::MetaItemInner::MetaItem(mi) => {
-                let tag = path_to_string(&mi.path);
-                let args = match &mi.kind {
+                let tag_name = path_to_string(&mi.path);
+                match &mi.kind {
                     ast::MetaItemKind::List(values) => {
-                        values.iter().map(|i| meta_list_item_to_string(i)).collect()
+                        let args = values.iter().map(|i| meta_list_item_to_string(i)).collect();
+                        out.push((tag_name, SafetyTagType::FromConfig { args }));
                     }
-                    ast::MetaItemKind::Word => vec![],
-                    ast::MetaItemKind::NameValue(_) => return None,
-                };
-                out.push((tag, args));
+                    ast::MetaItemKind::Word => {
+                        out.push((tag_name, SafetyTagType::FromConfig { args: vec![] }));
+                    }
+                    ast::MetaItemKind::NameValue(lit) => {
+                        let Some(sym) = lit.value_str() else {
+                            continue;
+                        };
+                        out.push((tag_name, SafetyTagType::Inline { text: sym.to_string() }));
+                    }
+                }
             }
             ast::MetaItemInner::Lit(_) => return None,
         }
@@ -170,10 +183,7 @@ fn parse_safety_requires(attr: &hir::Attribute) -> Option<Vec<(String, Vec<Strin
 }
 
 /// Collect all safety properties from the given attributes.
-///
-/// Returns a vector of tuples, where the first element is the tag name and the second element
-/// is a vector of arguments. The arguments are the values of the arguments to the tag.
-fn collect_safety_properties(attrs: &Attributes) -> Vec<(String, Vec<String>)> {
+fn collect_safety_properties(attrs: &Attributes) -> Vec<(String, SafetyTagType)> {
     let mut props = Vec::new();
     for a in attrs.other_attrs.iter() {
         if let Some(p) = parse_safety_requires(a) {
@@ -212,15 +222,38 @@ fn render_desc(def: &TagDef, values: &[String]) -> String {
     rendered
 }
 
+/// Replace all underscores (`_`) with spaces and capitalize the first letter.
+fn format_customized_tag(tag: &str) -> String {
+    let s = tag.replace('_', " ");
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}
+
 /// Build the inject markdown for the given safety properties.
 ///
 /// Returns the inject markdown.
-fn build_inject_markdown(spec: &SafetySpec, props: &[(String, Vec<String>)]) -> String {
+fn build_inject_markdown(spec: &SafetySpec, props: &[(String, SafetyTagType)]) -> String {
     let mut lines = Vec::new();
-    for (tag, args) in props {
-        if let Some(def) = spec.tags.get(tag) {
-            let desc = render_desc(def, args);
-            lines.push(format!("- {tag}: {desc}"));
+    for (tag, clause) in props {
+        match clause {
+            SafetyTagType::Inline { text } => {
+                if spec.tags.contains_key(tag) {
+                    lines.push(format!("* {tag}: {text}"));
+                } else {
+                    let tag = format_customized_tag(tag);
+                    lines.push(format!("* {tag}: {text}"));
+                }
+            }
+            SafetyTagType::FromConfig { args } => {
+                let Some(def) = spec.tags.get(tag) else {
+                    continue;
+                };
+                let desc = render_desc(def, args);
+                lines.push(format!("* {tag}: {desc}"));
+            }
         }
     }
     lines.join("\n")
@@ -289,7 +322,7 @@ fn target_kind(kind: &ItemKind) -> bool {
 }
 
 /// The safety injector.
-/// 
+///
 /// This is the main struct for injecting safety documentation into the item docs.
 struct SafetyInjector {
     spec: Arc<SafetySpec>,
