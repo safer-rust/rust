@@ -13,6 +13,13 @@ if isCiBranch try-perf || isCiBranch automation/bors/try || isCiBranch automatio
     exit
 fi
 
+# `GITHUB_BASE_REF` is only set for `pull_request` workflows. On `push` (e.g. fork branches used
+# for development) it is empty and `ciBaseBranch` would be wrong — skip the check.
+if [[ -z "${GITHUB_BASE_REF:-}" ]]; then
+    echo "channel verification skipped: GITHUB_BASE_REF is unset (not a pull_request event)"
+    exit 0
+fi
+
 channel=$(cat "$(ciCheckoutPath)/src/ci/channel")
 case "${channel}" in
     nightly)
