@@ -1,0 +1,10 @@
+# CI configuration for Miri job
+
+# Existing configuration...
+# Adding LLVM download configuration
+[llvm]
+download-ci-llvm = false
+
+# Miri job definition
+# Specific command for running Miri tests
+x.py test --stage 2 src/tools/miri src/tools/miri/cargo-miri
