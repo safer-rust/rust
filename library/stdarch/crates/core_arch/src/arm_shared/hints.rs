@@ -17,7 +17,7 @@
 ))]
 #[inline(always)]
 #[unstable(feature = "stdarch_arm_hints", issue = "117218")]
-pub unsafe fn __wfi() {
+pub fn __wfi() {
     hint(HINT_WFI);
 }
 
@@ -36,7 +36,7 @@ pub unsafe fn __wfi() {
 ))]
 #[inline(always)]
 #[unstable(feature = "stdarch_arm_hints", issue = "117218")]
-pub unsafe fn __wfe() {
+pub fn __wfe() {
     hint(HINT_WFE);
 }
 
@@ -54,7 +54,7 @@ pub unsafe fn __wfe() {
 ))]
 #[inline(always)]
 #[unstable(feature = "stdarch_arm_hints", issue = "117218")]
-pub unsafe fn __sev() {
+pub fn __sev() {
     hint(HINT_SEV);
 }
 
@@ -72,7 +72,7 @@ pub unsafe fn __sev() {
 ))]
 #[inline(always)]
 #[unstable(feature = "stdarch_arm_hints", issue = "117218")]
-pub unsafe fn __sevl() {
+pub fn __sevl() {
     hint(HINT_SEVL);
 }
 
@@ -94,7 +94,7 @@ pub unsafe fn __sevl() {
 ))]
 #[inline(always)]
 #[unstable(feature = "stdarch_arm_hints", issue = "117218")]
-pub unsafe fn __yield() {
+pub fn __yield() {
     hint(HINT_YIELD);
 }
 
@@ -106,7 +106,7 @@ pub unsafe fn __yield() {
 /// will increase execution time.
 #[inline(always)]
 #[unstable(feature = "stdarch_arm_hints", issue = "117218")]
-pub unsafe fn __nop() {
+pub fn __nop() {
     crate::arch::asm!("nop", options(nomem, nostack, preserves_flags));
 }
 
